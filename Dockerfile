@@ -5,6 +5,11 @@ RUN echo "1.574" > .lts-version-number
 RUN apt-get update && apt-get install -y wget git curl zip
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk
 RUN apt-get update && apt-get install -y maven=3.0.5-1 ant=1.9.3-2build1 ruby rbenv make
+RUN apt-get install python-pip python-dev build-essential
+RUN pip install --upgrade pip
+RUN pip install --upgrade virtualenv
+RUN pip install --upgrade boto
+RUN pip install --upgrade ansible
 
 #add chef client to give access to install knife etc..
 RUN cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh
