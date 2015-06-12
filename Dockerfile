@@ -11,6 +11,9 @@ ADD s3download /bin/s3download
 ADD s3latest /bin/s3latest
 ADD s3trim /bin/s3trim
 ADD s3upload /bin/s3upload
+ADD s3upload /bin/s3upload
+ADD hosts /etc/ansible/hosts
+ADD ec2.ini /etc/ansible/ec2.ini
 
 RUN chmod 755 /bin/ec2provision
 RUN chmod 755 /bin/ec2terminate
@@ -21,6 +24,7 @@ RUN chmod 755 /bin/s3download
 RUN chmod 755 /bin/s3latest
 RUN chmod 755 /bin/s3trim
 RUN chmod 755 /bin/s3upload
+RUN chmod 777 /etc/ansible/hosts
 RUN echo "1.574" > .lts-version-number
 RUN apt-get update && apt-get install -y wget git curl zip
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk
