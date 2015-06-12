@@ -14,13 +14,11 @@ ADD s3upload /bin/s3upload
 ADD s3upload /bin/s3upload
 ADD hosts /etc/ansible/hosts
 ADD ec2.ini /etc/ansible/ec2.ini
+ADD ansible.cfg /etc/ansible/ansible.cfg
 
 RUN chmod 755 /bin/ec2provision && chmod 755 /bin/ec2terminate && chmod 755 /bin/filetrim && chmod 755 /bin/r53a && chmod 755 /bin/s3copy && chmod 755 /bin/s3download && chmod 755 /bin/s3latest && chmod 755 /bin/s3trim && chmod 755 /bin/s3upload && chmod 777 /etc/ansible/hosts && echo "1.574" > .lts-version-number && apt-get update && apt-get install -y wget git curl zip && apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk && apt-get update && apt-get install -y maven=3.0.5-1 ant=1.9.3-2build1 ruby rbenv make && apt-get install -y python-pip python-dev build-essential && cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh && cd /tmp/ && sudo /bin/sh install.sh && wget -q -O - http://pkg.jenkins-ci.org/debian-stable/jenkins-ci.org.key | sudo apt-key add - && echo deb http://pkg.jenkins-ci.org/debian-stable binary/ >> /etc/apt/sources.list && apt-get update && apt-get install -y jenkins build-essential && mkdir -p /var/jenkins_home && chown -R jenkins /var/jenkins_home && cd /tmp && zip -g /usr/share/jenkins/jenkins.war WEB-INF/init.groovy && cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh && sh /tmp/install.sh
-RUN pip install --upgrade pip
-RUN pip install --upgrade virtualenv
-RUN pip install --upgrade boto 
-RUN pip install --upgrade ansible
-RUN chown jenkins:jenkins /etc/ansible/ec2.ini
+RUN pip install --upgrade pip && && pip install --upgrade virtualenv && pip install --upgrade boto  && pip install --upgrade ansible
+RUN chown jenkins:jenkins /etc/ansible/ec2.ini && chown jenkins:jenkins /etc/ansible/ansible.cfg
 
 USER jenkins
 
