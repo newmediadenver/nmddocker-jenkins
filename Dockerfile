@@ -20,6 +20,7 @@ RUN pip install --upgrade pip
 RUN pip install --upgrade virtualenv
 RUN pip install --upgrade boto 
 RUN pip install --upgrade ansible
+RUN chown jenkins:jenkins /etc/ansible/ec2.ini
 
 USER jenkins
 
