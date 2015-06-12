@@ -22,7 +22,7 @@ RUN chmod 755 /bin/s3latest
 RUN chmod 755 /bin/s3trim
 RUN chmod 755 /bin/s3upload
 RUN echo "1.574" > .lts-version-number
-RUN apt-get update && apt-get install -y wget git curl zip \
+RUN apt-get update && apt-get install -y wget git curl zip
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk
 RUN apt-get update && apt-get install -y maven=3.0.5-1 ant=1.9.3-2build1 ruby rbenv make
 RUN apt-get install -y python-pip python-dev build-essential
