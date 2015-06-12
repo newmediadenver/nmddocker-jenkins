@@ -30,11 +30,7 @@ apt-get update && apt-get install -y wget git curl zip && \
 apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk && \
 apt-get update && apt-get install -y maven=3.0.5-1 ant=1.9.3-2build1 ruby rbenv make && \
 apt-get install -y python-pip python-dev build-essential && \
-RUN pip install --upgrade pip
-RUN pip install --upgrade virtualenv
-RUN pip install --upgrade boto
-RUN pip install --upgrade ansible
-RUN cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh && \
+cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh && \
 cd /tmp/ && sudo /bin/sh install.sh && \
 wget -q -O - http://pkg.jenkins-ci.org/debian-stable/jenkins-ci.org.key | sudo apt-key add - && \
 echo deb http://pkg.jenkins-ci.org/debian-stable binary/ >> /etc/apt/sources.list && \
@@ -42,7 +38,12 @@ apt-get update && apt-get install -y jenkins build-essential && \
 mkdir -p /var/jenkins_home && chown -R jenkins /var/jenkins_home && \
 cd /tmp && zip -g /usr/share/jenkins/jenkins.war WEB-INF/init.groovy && \
 cd /tmp/ && curl -O -L http://www.opscode.com/chef/install.sh && \
-cd /tmp/ sh install.sh && \
+cd /tmp/ sh install.sh
+
+RUN pip install --upgrade pip
+RUN pip install --upgrade virtualenv
+RUN pip install --upgrade boto
+RUN pip install --upgrade ansible
 
 USER jenkins
 
