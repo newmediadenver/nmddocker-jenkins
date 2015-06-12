@@ -11,7 +11,7 @@ ADD s3latest /bin/s3latest
 ADD s3trim /bin/s3trim
 ADD s3upload /bin/s3upload
 
-echo "1.574" > .lts-version-number && \
+RUN echo "1.574" > .lts-version-number && \
 apt-get update && apt-get install -y wget git curl zip && \
 apt-get update && apt-get install -y --no-install-recommends openjdk-7-jdk && \
 apt-get update && apt-get install -y maven=3.0.5-1 ant=1.9.3-2build1 ruby rbenv make && \
