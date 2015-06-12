@@ -1,0 +1,189 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import argparse
+import logging
+import operator
+import re
+import boto.ec2
+import time
+from boto.ec2.blockdevicemapping import BlockDeviceType
+from boto.ec2.blockdevicemapping import BlockDeviceMapping
+import boto.route53
+import subprocess
+import traceback
+import sys
+import shlex
+from time import strftime
+import socket
+start_time = time.time()
+
+
+parser = argparse.ArgumentParser(description="Provision an ec2 instance.", prog="ec2provision")
+parser.add_argument("hostname", help="The FQDN of the server.")
+parser.add_argument("-a", "--ami", help="The AWS ami to use.", dest='ami', required=True)
+parser.add_argument("-b", "--both", help="Create both private and public dns.", dest='both', default=False, action='store_true')
+parser.add_argument("-d", "--disk", help="The disk size in GB.", dest='disk', required=True)
+parser.add_argument("-s", "--subnet", help="The VPC subnet to place the instance in.", dest='subnet', required=True)
+parser.add_argument("-r", "--region", help="The AWS region to target.", dest='region', required=True)
+parser.add_argument("-p", "--pem", help="Your amazon pem key name.", dest='pem', required=True)
+parser.add_argument("-g", "--group", help="The security group to place this instance in.", dest='group', required=True)
+parser.add_argument("-t", "--type", help="The AWS instance type.", dest='aws_type', required=True)
+parser.add_argument("-k", "--key", help="Your amazon access key.", dest='aws_access_key', required=True)
+parser.add_argument("-v", "--vpc", help="The targetted VPC id.", dest='aws_vpc_id', required=True)
+parser.add_argument("-sk", "--secret", help="Your amazon secret key.", dest='aws_secret_key', required=True)
+parser.add_argument("-l", "--log", help="Sets the log level. Defaults to INFO.", default='INFO')
+
+def format_exception(e):
+  exception_list = traceback.format_stack()
+  exception_list = exception_list[:-2]
+  exception_list.extend(traceback.format_tb(sys.exc_info()[2]))
+  exception_list.extend(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
+  exception_str = "Traceback (most recent call last):\n"
+  exception_str += "".join(exception_list)
+  exception_str = exception_str[:-1]
+  return exception_str
+
+def describe(s):
+  for g in s.groups:
+    logger.info("%s %s group: %s" % (aws_tag, s.id, g.name))
+  logger.info("%s %s public_dns_name: %s" % (aws_tag, s.id, s.public_dns_name))
+  logger.info("%s %s private_dns_name: %s" % (aws_tag, s.id, s.private_dns_name))
+  logger.info("%s %s state: %s" % (aws_tag, s.id, s.state))
+  logger.info("%s %s state_code: %s" % (aws_tag, s.id, s.state_code))
+  logger.info("%s %s previous_state: %s" % (aws_tag, s.id, s.previous_state))
+  logger.info("%s %s previous_state_code: %s" % (aws_tag, s.id, s.previous_state_code))
+  logger.info("%s %s key_name: %s" % (aws_tag, s.id, s.key_name))
+  logger.info("%s %s instane_type: %s" % (aws_tag, s.id, s.instance_type))
+  logger.info("%s %s launch_time: %s" % (aws_tag, s.id, s.launch_time))
+  logger.info("%s %s image_id: %s" % (aws_tag, s.id, s.image_id))
+  logger.info("%s %s placement: %s" % (aws_tag, s.id, s.placement))
+  logger.info("%s %s placement_group: %s" % (aws_tag, s.id, s.placement_group))
+  logger.info("%s %s placement_tenancy: %s" % (aws_tag, s.id, s.placement_tenancy))
+  logger.info("%s %s kernel: %s" % (aws_tag, s.id, s.kernel))
+  logger.info("%s %s ramdisk: %s" % (aws_tag, s.id, s.ramdisk))
+  logger.info("%s %s architecture: %s" % (aws_tag, s.id, s.architecture))
+  logger.info("%s %s hypervisor: %s" % (aws_tag, s.id, s.hypervisor))
+  logger.info("%s %s virtualization_type: %s" % (aws_tag, s.id, s.virtualization_type))
+  logger.info("%s %s product_codes: %s" % (aws_tag, s.id, s.product_codes))
+  logger.info("%s %s ami_launch_index: %s" % (aws_tag, s.id, s.ami_launch_index))
+  logger.info("%s %s monitored: %s" % (aws_tag, s.id, s.monitored))
+  logger.info("%s %s monitoring_state: %s" % (aws_tag, s.id, s.monitoring_state))
+  logger.info("%s %s spot_instance_request_id: %s" % (aws_tag, s.id, s.spot_instance_request_id))
+  logger.info("%s %s subnet_id: %s" % (aws_tag, s.id, s.subnet_id))
+  logger.info("%s %s vpc_id: %s" % (aws_tag, s.id, s.vpc_id))
+  logger.info("%s %s private_ip_address: %s" % (aws_tag, s.id, s.private_ip_address))
+  logger.info("%s %s ip_address: %s" % (aws_tag, s.id, s.ip_address))
+  logger.info("%s %s platform: %s" % (aws_tag, s.id, s.platform))
+  logger.info("%s %s root_device_name: %s" % (aws_tag, s.id, s.root_device_name))
+  logger.info("%s %s root_device_type: %s" % (aws_tag, s.id, s.root_device_type))
+  logger.info("%s %s block_device_mapping: %s" % (aws_tag, s.id, s.block_device_mapping))
+  logger.info("%s %s state_reason: %s" % (aws_tag, s.id, s.state_reason))
+  logger.info("%s %s interfaces: %s" % (aws_tag, s.id, s.interfaces))
+  logger.info("%s %s ebs_optimized: %s" % (aws_tag, s.id, s.ebs_optimized))
+  logger.info("%s %s instance_profile: %s" % (aws_tag, s.id, s.instance_profile))
+
+def get_vpc_zone(conn, name, vpc_id):
+  for zone in conn.get_zones():
+    if zone.name == name:
+      if 'VPCs' in conn.get_hosted_zone(zone.id)['GetHostedZoneResponse']:
+        return zone
+
+def execute(command):
+  process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  while True:
+      nextline = process.stdout.readline()
+      if nextline == '' and process.poll() != None:
+          break
+      sys.stdout.write(nextline)
+      sys.stdout.flush()
+
+  output = process.communicate()[0]
+  returncode = process.returncode
+
+  if (returncode == 0):
+      return output
+  else:
+    raise Exception("%s %s %s" % (command, returncode, output))
+
+def main(hostname, ami, both, disk, subnet, region, pem, group, aws_type, aws_access_key, aws_secret_key, aws_vpc_id, log):
+    global aws_key
+    aws_key = aws_access_key
+
+    global aws_secret
+    aws_secret = aws_secret_key
+
+    global aws_region
+    aws_region = region
+
+    global aws_tag
+    aws_tag = hostname
+
+    try:
+      conn = boto.ec2.connect_to_region(aws_region, aws_access_key_id=aws_key, aws_secret_access_key=aws_secret)
+      
+      dev_sda = BlockDeviceType()
+      dev_sda.size = disk
+      dev_sda.delete_on_termination = True
+      bdm = BlockDeviceMapping()
+      bdm['/dev/sda'] = dev_sda
+      
+      interface = boto.ec2.networkinterface.NetworkInterfaceSpecification(
+        subnet_id=subnet, 
+        groups=[group], 
+        associate_public_ip_address=True,
+        delete_on_termination=True
+      )
+      interfaces = boto.ec2.networkinterface.NetworkInterfaceCollection(interface)
+      
+      reservation = conn.run_instances(
+        ami,
+        key_name=pem,
+        instance_type=aws_type,
+        block_device_map=bdm,
+        network_interfaces=interfaces)
+      logger.debug(reservation)
+      
+      for instance in reservation.instances:
+        status = instance.update()
+        # Need to wait because we don't have a public ip address until running.
+        while status == 'pending':
+          time.sleep(30)      
+          status = instance.update()
+          logger.info("%s %s %s" % (hostname, instance.id, status))
+        if status == 'running':
+          instance.add_tag("Name", hostname)
+          describe(instance)
+          # Private Zone
+          logger.info("Waiting for dns to synchronize...")
+          r53a = "r53a -k %s -sk '%s' -r %s -i %s -v %s %s" % (aws_key, aws_secret, aws_region, instance.private_ip_address, instance.vpc_id, instance.tags['Name'])
+          logger.debug(r53a)
+          execute(r53a)
+          if both == True:
+            # Public Zone
+            r53a2 = "r53a -k %s -sk '%s' -r %s -i %s %s" % (aws_key, aws_secret, aws_region, instance.ip_address, instance.tags['Name'])
+            logger.debug(r53a2)
+            execute(r53a2)
+          logger.info("completed in %s seconds" % (time.time() - start_time))
+
+    except KeyboardInterrupt:
+      logger.info("aborted in %s seconds" % (time.time() - start_time))
+      logger.warning("User terminated")
+    except Exception, e:
+      logger.info("failed in %s seconds" % (time.time() - start_time))
+      logger.error(format_exception(e))
+
+if __name__ == "__main__":
+  args = parser.parse_args()
+
+  logger = logging.getLogger()
+  exec("logger.setLevel(logging." + args.log.upper() + ")")
+
+  handler = logging.StreamHandler()
+  exec("handler.setLevel(logging." + args.log.upper() + ")")
+  formatter = logging.Formatter("[%(asctime)s] %(levelname)s: ec2provision %(message)s","%Y-%m-%d %H:%M:%S")
+  handler.setFormatter(formatter)
+  logger.addHandler(handler)
+
+  arg_dict = vars(args)
+  logging.debug("CLI args: %s" % args)
+  main(**arg_dict)

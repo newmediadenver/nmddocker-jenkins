@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import argparse
+import logging
+import glob
+import operator
+import re
+
+parser = argparse.ArgumentParser(description="Clean up a local filesystem based on a prefix. Made to sort files with unix timestamps in the filename.", prog="filetrim")
+parser.add_argument("prefix", help="S3 Object key prefix.")
+parser.add_argument("-c", "--count", help="Number of files to leave.", dest='count')
+parser.add_argument("-l", "--log", help="Sets the log level. Defaults to INFO.", default='INFO')
+
+def main(prefix, log='info', count=5):
+    bucket_list = glob.glob(prefix + "*")
+    pattern = '\d+'
+    results = {}
+    try:
+      for item in bucket_list:
+        match = re.search(pattern, item)
+        s = match.start()
+        e = match.end()
+        results[item[s:e]] = item
+      sorted_results = sorted(results.items(), key=operator.itemgetter(1))
+      print sorted_results
+      removal_count = len(sorted_results) - int(count)
+      for _ in range(removal_count):
+        logger.info("Removing: %s" % (sorted_results[_][1]))
+        os.remove(sorted_results[_][1])
+    except KeyboardInterrupt:
+      logger.warning("User terminated")
+    except Exception, err:
+      logger.error(err)
+
+if __name__ == "__main__":
+  args = parser.parse_args()
+
+  logger = logging.getLogger()
+  exec("logger.setLevel(logging." + args.log.upper() + ")")
+
+  handler = logging.StreamHandler()
+  exec("handler.setLevel(logging." + args.log.upper() + ")")
+  formatter = logging.Formatter("%(levelname)s - %(message)s")
+  handler.setFormatter(formatter)
+  logger.addHandler(handler)
+
+  arg_dict = vars(args)
+  logging.debug("CLI args: %s" % args)
+  main(**arg_dict)
