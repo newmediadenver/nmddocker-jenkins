@@ -21,6 +21,7 @@ start_time = time.time()
 parser = argparse.ArgumentParser(description="Provision an ec2 instance.", prog="ec2provision")
 parser.add_argument("hostname", help="The FQDN of the server.")
 parser.add_argument("-a", "--ami", help="The AWS ami to use.", dest='ami', required=True)
+parser.add_argument("-e", "--environment", help="The environment is added to the instance as a tag. ex: staging, production, etc.", dest='environment', required=True)
 parser.add_argument("-b", "--both", help="Create both private and public dns.", dest='both', default=False, action='store_true')
 parser.add_argument("-d", "--disk", help="The disk size in GB.", dest='disk', required=True)
 parser.add_argument("-s", "--subnet", help="The VPC subnet to place the instance in.", dest='subnet', required=True)
@@ -105,7 +106,7 @@ def execute(command):
   else:
     raise Exception("%s %s %s" % (command, returncode, output))
 
-def main(hostname, ami, both, disk, subnet, region, pem, group, aws_type, aws_access_key, aws_secret_key, aws_vpc_id, log):
+def main(hostname, ami, environment, both, disk, subnet, region, pem, group, aws_type, aws_access_key, aws_secret_key, aws_vpc_id, log):
     global aws_key
     aws_key = aws_access_key
 
@@ -152,6 +153,7 @@ def main(hostname, ami, both, disk, subnet, region, pem, group, aws_type, aws_ac
           logger.info("%s %s %s" % (hostname, instance.id, status))
         if status == 'running':
           instance.add_tag("Name", hostname)
+          instance.add_tag("Environment", environment)
           describe(instance)
           # Private Zone
           logger.info("Waiting for dns to synchronize...")
@@ -180,7 +182,7 @@ if __name__ == "__main__":
 
   handler = logging.StreamHandler()
   exec("handler.setLevel(logging." + args.log.upper() + ")")
-  formatter = logging.Formatter("[%(asctime)s] %(levelname)s: ec2provision %(message)s","%Y-%m-%d %H:%M:%S")
+  formatter = logging.Formatter("[%(levelname)s] ec2provision %(message)s")
   handler.setFormatter(formatter)
   logger.addHandler(handler)
 
