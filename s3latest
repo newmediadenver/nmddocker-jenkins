@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
   handler = logging.StreamHandler()
   exec("handler.setLevel(logging." + args.log.upper() + ")")
-  formatter = logging.Formatter("%(levelname)s - %(message)s")
+  formatter = logging.Formatter("[%(levelname)s] s3latest %(message)s")
   handler.setFormatter(formatter)
   logger.addHandler(handler)
 

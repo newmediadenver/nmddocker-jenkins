@@ -65,6 +65,7 @@ def main(instance, both, region, aws_access_key, aws_secret_key, log):
       for r in reservations:
         for s in r.instances:
           if s.id == instance:
+            logger.info("%s %s" % (s.id, s.state))
             logger.info("Waiting for dns to synchronize...")
             if both == True:
               r53a2 = "r53a -l %s -d -k %s -sk '%s' -r %s -i %s %s" % (log, aws_key, aws_secret, aws_region, s.private_ip_address, s.tags['Name'])
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 
   handler = logging.StreamHandler()
   exec("handler.setLevel(logging." + args.log.upper() + ")")
-  formatter = logging.Formatter("[%(asctime)s] %(levelname)s: ec2terminate %(message)s","%Y-%m-%d %H:%M:%S")
+  formatter = logging.Formatter("[%(levelname)s] ec2terminate %(message)s")
   handler.setFormatter(formatter)
   logger.addHandler(handler)
 

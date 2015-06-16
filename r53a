@@ -68,11 +68,15 @@ def main(hostname, delete, vpc_id, ipaddress, region, aws_access_key, aws_secret
             else:
               z = get_public_zone(route53, zone['Name'])
             if delete == True:
-              status = z.delete_a(hostname)
-              while status.update() != 'INSYNC':
+              try:
+                status = z.delete_a(hostname)
+                while status.update() != 'INSYNC':
+                  logger.info("%s %s %s %s" % (hostname, z.name, z.id, status))
+                  time.sleep(30)
                 logger.info("%s %s %s %s" % (hostname, z.name, z.id, status))
-                time.sleep(30)
-              logger.info("%s %s %s %s" % (hostname, z.name, z.id, status))
+              except AttributeError:
+                logger.info("%s not in %s %s." % (hostname, z.name, z.id))
+
             if delete == False:
               status = z.add_a(hostname, ipaddress)
               while status.update() != 'INSYNC':
@@ -94,7 +98,7 @@ if __name__ == "__main__":
 
   handler = logging.StreamHandler()
   exec("handler.setLevel(logging." + args.log.upper() + ")")
-  formatter = logging.Formatter("[%(asctime)s] %(levelname)s: r53a %(message)s","%Y-%m-%d %H:%M:%S")
+  formatter = logging.Formatter("[%(levelname)s] r53a %(message)s")
   handler.setFormatter(formatter)
   logger.addHandler(handler)
 
